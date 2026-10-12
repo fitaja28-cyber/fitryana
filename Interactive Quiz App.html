@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Interactive Quiz App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #EEF3FA;
+  --card: #FFFFFF;
+  --ink: #14213D;
+  --ink-soft: #5B6882;
+  --line: #D3DBEA;
+  --accent: #3D5AFE;
+  --correct: #1B9E5A;
+  --correct-bg: #E3F6EB;
+  --wrong: #D64545;
+  --wrong-bg: #FCE8E8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.hidden { display: none !important; }
+
+.quiz-container {
+  width: 100%;
+  max-width: 560px;
+  padding: 32px 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+h1 {
+  margin: 0 0 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+h2 {
+  margin: 20px 0 22px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.progress-info { font-size: 0.9rem; color: var(--ink-soft); }
+
+.progress-bar {
+  height: 6px;
+  margin-top: 8px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#progressFill {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.35s ease;
+}
+
+.options-grid { display: grid; gap: 10px; }
+
+.option-btn {
+  padding: 14px 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.option-btn:hover:not(:disabled) { border-color: var(--accent); }
+.option-btn:disabled { cursor: default; }
+.option-btn:disabled:not(.correct):not(.wrong) { opacity: 0.55; }
+
+.option-btn.correct {
+  background: var(--correct-bg);
+  border-color: var(--correct);
+  color: #0E5A33;
+}
+
+.option-btn.wrong {
+  background: var(--wrong-bg);
+  border-color: var(--wrong);
+  color: #8C2323;
+}
+
+.btn {
+  margin-top: 22px;
+  padding: 12px 22px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn:hover { filter: brightness(1.08); }
+
+.score-line { font-size: 1.2rem; }
+
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* Dark mode + safe area untuk halaman terbit */
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#0F1629; --card:#18213A; --ink:#E8EDFB; --ink-soft:#9AA6C4; --line:#2B3656;
+    --accent:#7C93FF; --correct-bg:#12301F; --wrong-bg:#3A1A1E; }
+}
+:root[data-theme="dark"] { --bg:#0F1629; --card:#18213A; --ink:#E8EDFB; --ink-soft:#9AA6C4; --line:#2B3656;
+    --accent:#7C93FF; --correct-bg:#12301F; --wrong-bg:#3A1A1E; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .option-btn.correct { color:#8CE6B3; }
+  :root:not([data-theme="light"]) .option-btn.wrong { color:#FFA6A6; }
+  :root:not([data-theme="light"]) .btn { color:#0F1629; }
+}
+:root[data-theme="dark"] .option-btn.correct { color:#8CE6B3; }
+:root[data-theme="dark"] .option-btn.wrong { color:#FFA6A6; }
+:root[data-theme="dark"] .btn { color:#0F1629; }
+</style>
+</head>
+<body>
+  <main class="quiz-container">
+    <h1>Kuis Dasar Web</h1>
+
+    <!-- Layar kuis -->
+    <section id="quiz">
+      <div class="progress-info">
+        <span id="progress">Soal 1/6</span>
+      </div>
+      <div class="progress-bar" aria-hidden="true">
+        <div id="progressFill"></div>
+      </div>
+
+      <h2 id="question" aria-live="polite"></h2>
+      <div id="options" class="options-grid"></div>
+
+      <button id="nextBtn" class="btn hidden" type="button">Lanjut</button>
+    </section>
+
+    <!-- Layar hasil -->
+    <section id="result" class="hidden">
+      <h2>Kuis selesai</h2>
+      <p class="score-line">Skor kamu: <strong id="score"></strong></p>
+      <p>Skor tertinggi: <strong id="highScore"></strong></p>
+      <button id="restartBtn" class="btn" type="button">Ulangi kuis</button>
+    </section>
+  </main>
+
+  <script>
+'use strict';
+
+// ---------- Data soal ----------
+// correct = index jawaban yang benar di dalam array options
+const quizData = [
+  {
+    question: 'Apa kepanjangan dari HTML?',
+    options: [
+      'Hyper Text Markup Language',
+      'High Tech Modern Language',
+      'Home Tool Markup Language',
+      'Hyperlink Text Mode Language'
+    ],
+    correct: 0
+  },
+  {
+    question: 'Method mana yang mengambil elemen pertama yang cocok dengan CSS selector?',
+    options: [
+      'getElementsByClassName()',
+      'querySelector()',
+      'getElementById()',
+      'createElement()'
+    ],
+    correct: 1
+  },
+  {
+    question: 'Properti mana yang aman dipakai untuk menampilkan input dari pengguna?',
+    options: ['innerHTML', 'outerHTML', 'textContent', 'document.write'],
+    correct: 2
+  },
+  {
+    question: 'Event delegation bisa bekerja karena adanya konsep apa?',
+    options: ['preventDefault()', 'Event bubbling', 'setTimeout()', 'JSON.parse()'],
+    correct: 1
+  },
+  {
+    question: 'Method LocalStorage mana yang dipakai untuk menyimpan data?',
+    options: ['getItem()', 'removeItem()', 'clear()', 'setItem()'],
+    correct: 3
+  },
+  {
+    question: 'Method mana yang dipakai untuk membuat elemen HTML baru lewat JavaScript?',
+    options: [
+      'document.createElement()',
+      'document.newElement()',
+      'document.makeElement()',
+      'document.addElement()'
+    ],
+    correct: 0
+  }
+];
+
+const HIGH_SCORE_KEY = 'quizHighScore';
+
+// ---------- State ----------
+let currentQuestion = 0;
+let score = 0;
+let answered = false; // mencegah satu soal dijawab dua kali
+
+// ---------- Elemen DOM ----------
+const quizEl = document.querySelector('#quiz');
+const resultEl = document.querySelector('#result');
+const progressEl = document.querySelector('#progress');
+const progressFillEl = document.querySelector('#progressFill');
+const questionEl = document.querySelector('#question');
+const optionsEl = document.querySelector('#options');
+const nextBtn = document.querySelector('#nextBtn');
+const scoreEl = document.querySelector('#score');
+const highScoreEl = document.querySelector('#highScore');
+const restartBtn = document.querySelector('#restartBtn');
+
+// ---------- LocalStorage (dibungkus try/catch kalau storage diblokir) ----------
+function getHighScore() {
+  try {
+    return parseInt(localStorage.getItem(HIGH_SCORE_KEY), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveHighScore(value) {
+  try {
+    localStorage.setItem(HIGH_SCORE_KEY, String(value));
+  } catch {
+    // diabaikan: kuis tetap jalan walau high score tidak bisa disimpan
+  }
+}
+
+// ---------- Render soal (tanpa innerHTML) ----------
+function renderQuestion() {
+  const q = quizData[currentQuestion];
+  const total = quizData.length;
+  answered = false;
+
+  progressEl.textContent = `Soal ${currentQuestion + 1}/${total}`;
+  progressFillEl.style.width = `${((currentQuestion + 1) / total) * 100}%`;
+  questionEl.textContent = q.question;
+
+  optionsEl.replaceChildren(); // kosongkan pilihan lama
+  q.options.forEach((text, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option-btn';
+    btn.textContent = text;
+    btn.dataset.index = index; // dibaca saat event delegation
+    optionsEl.append(btn);
+  });
+
+  nextBtn.textContent = currentQuestion === total - 1 ? 'Lihat hasil' : 'Lanjut';
+  nextBtn.classList.add('hidden');
+}
+
+// ---------- Event delegation: satu listener untuk semua pilihan ----------
+optionsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.option-btn');
+  if (!btn || answered) return;
+  answered = true;
+
+  const selected = Number(btn.dataset.index);
+  const correct = quizData[currentQuestion].correct;
+
+  if (selected === correct) {
+    btn.classList.add('correct');
+    score++;
+  } else {
+    btn.classList.add('wrong');
+    optionsEl.children[correct].classList.add('correct'); // tunjukkan jawaban benar
+  }
+
+  optionsEl.querySelectorAll('.option-btn').forEach((b) => { b.disabled = true; });
+  nextBtn.classList.remove('hidden');
+});
+
+// ---------- Tombol lanjut ----------
+nextBtn.addEventListener('click', () => {
+  currentQuestion++;
+  if (currentQuestion < quizData.length) {
+    renderQuestion();
+  } else {
+    showResult();
+  }
+});
+
+// ---------- Hasil + high score ----------
+function showResult() {
+  const total = quizData.length;
+  const percentage = Math.round((score / total) * 100);
+  const savedHighScore = getHighScore();
+
+  scoreEl.textContent = `${score}/${total} (${percentage}%)`;
+
+  if (percentage > savedHighScore) {
+    saveHighScore(percentage);
+    highScoreEl.textContent = `${percentage}% (rekor baru)`;
+  } else {
+    highScoreEl.textContent = `${savedHighScore}%`;
+  }
+
+  quizEl.classList.add('hidden');
+  resultEl.classList.remove('hidden');
+}
+
+// ---------- Restart ----------
+restartBtn.addEventListener('click', () => {
+  currentQuestion = 0;
+  score = 0;
+  resultEl.classList.add('hidden');
+  quizEl.classList.remove('hidden');
+  renderQuestion();
+});
+
+// ---------- Mulai ----------
+renderQuestion();
+</script>
+</body>
+</html>
